@@ -3,14 +3,17 @@ package com.jamil;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.util.ArrayList;
 
 public class Main
 {
-    ArrayList<String> lines = new ArrayList<>();
-    File imageFile = new File("res/angery.png");
+    int detail = 600;
+
+    File imageFile = new File("res/DSC_0349.png");
     BufferedImage image = null;
     BufferedImage alphabetImage = null;
+    BufferedImage drawnLettersImage = null;
+    BufferedImage outputImage;
+    BufferedImage coloredOutputImage;
     int[][][] alphabet = new int[97][6][11];
     int[][] greyscale;
     int[][] sobel;
@@ -21,6 +24,8 @@ public class Main
         {
             image = ImageIO.read(imageFile);
             greyscale = new int[image.getWidth()][image.getHeight()];
+
+            drawnLettersImage = ImageIO.read(new File("res/drawnalphabet.png"));
 
             alphabetImage = ImageIO.read(new File("res/alphabet.png"));
 
@@ -86,7 +91,7 @@ public class Main
 
                     sobel[i - 1][j - 1] = color;
 
-                    if (j != image.getWidth() - 2)
+                    if (j != image.getHeight() - 2)
                     {
                         a = b;
                         b = c;
@@ -101,22 +106,17 @@ public class Main
             }
 
             for (int i = 1; i < sobel.length - 1; i++)
-            {
                 for (int j = 1; j < sobel[i].length - 1; j++)
-                {
-                    if (sobel[i - 1][j - 1] > 5000)
+                    if (sobel[i - 1][j - 1] * detail > max)
                         sobel[i - 1][j - 1] = 1;
                     else
                         sobel[i - 1][j - 1] = 0;
-                    //sobel[i - 1][j - 1] = (256 * sobel[i - 1][j - 1]) / max;
-                    //int temp = (256 * sobel[i - 1][j - 1]) / max;
-                    //sobelImage.setRGB(i, j, 0xFF000000 + (temp << 16) + (temp << 8) + temp);
-                }
-            }
+
+            outputImage = new BufferedImage(sobelWidth, sobelHeight, (image.getType() == 0) ? 5 : image.getType());
+            coloredOutputImage = new BufferedImage(sobelWidth, sobelHeight, (image.getType() == 0) ? 5 : image.getType());
 
             for (int i = 0; i < sobelHeight; i += 11)
             {
-                String line = "";
                 for (int j = 0; j < sobelWidth; j += 6)
                 {
                     int maxScore = 0;
@@ -125,13 +125,9 @@ public class Main
                     {
                         int tempScore = 0;
                         for (int l = 0; l < 6; l++)
-                        {
                             for (int m = 0; m < 11; m++)
-                            {
                                 if (sobel[j + l][i + m] == alphabet[k][l][m])
                                     tempScore++;
-                            }
-                        }
 
                         if (tempScore > maxScore)
                         {
@@ -140,15 +136,26 @@ public class Main
                         }
                     }
 
-                    line += (char) (index + 31);
+                    for (int l = 0; l < 6; l++)
+                        for (int m = 0; m < 11; m++)
+                        {
+                            int color = drawnLettersImage.getRGB(index * 6 + l, m);
+                            outputImage.setRGB(j + l, i + m, color);
+                            if ((color & 0xFFFFFF) == (43 << 16) + (43 << 8) + 43)
+                                coloredOutputImage.setRGB(j + l, i + m, 0xFF000000);
+                            else
+                            {
+                                if (image.getWidth() > j + l && image.getHeight() > i + m)
+                                    coloredOutputImage.setRGB(j + l, i + m, image.getRGB(j + l, i + m));
+                                else
+                                    coloredOutputImage.setRGB(j + l, i + m, 0xFF000000);
+                            }
+                        }
                 }
-                lines.add(line);
             }
 
-            for (String line : lines)
-            {
-                System.out.println(line);
-            }
+            ImageIO.write(outputImage, "png", new File("out.png"));
+            ImageIO.write(coloredOutputImage, "png", new File("colorout.png"));
         }
         catch (Exception e)
         {
